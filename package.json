@@ -1,0 +1,19 @@
+{
+  "name": "drakkar",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A bruno-simon.com-style drivable 3D portfolio, except the car is a viking longship",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort"
+  },
+  "dependencies": {
+    "cannon-es": "^0.20.0",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8"
+  }
+}

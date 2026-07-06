@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>DRAKKAR — a viking ship you can drive</title>
+    <meta name="description" content="A bruno-simon.com-style 3D playground, except the car is a viking longship. Sail it with WASD." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <!-- Intro / loading -->
+    <div id="intro">
+      <div class="intro-inner">
+        <div class="intro-rune">ᛞᚱᚨᚲᚲᚨᚱ</div>
+        <h1>DRAKKAR</h1>
+        <p class="tagline">a viking ship you can drive</p>
+        <div class="controls-hint">
+          <div><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> or arrows — sail</div>
+          <div><span class="key">SPACE</span> — drop anchor (brake) &nbsp; <span class="key">R</span> — reset ship</div>
+          <div class="touch-only">on touch devices: use the joystick, bottom left</div>
+        </div>
+        <button id="setSail">⚔ &nbsp;SET SAIL&nbsp; ⚔</button>
+        <p class="credit">a tribute to <a href="https://bruno-simon.com" target="_blank" rel="noreferrer">bruno-simon.com</a> — with a longship instead of the car</p>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div id="brand">ᚠ DRAKKAR</div>
+      <div id="speed"><span id="speedValue">0</span><span class="unit">knots</span></div>
+      <button id="resetBtn" title="Reset ship (R)">⟲ reset</button>
+      <div id="hint">W A S D to sail · SPACE anchor · smash the letters, jump the serpent</div>
+    </div>
+
+    <!-- Runestone panels -->
+    <div id="panel" class="hidden">
+      <div class="panel-card">
+        <button id="panelClose">✕</button>
+        <h2 id="panelTitle"></h2>
+        <div id="panelBody"></div>
+      </div>
+    </div>
+
+    <!-- Touch joystick -->
+    <div id="joystick" class="hidden">
+      <div id="joystickKnob"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
