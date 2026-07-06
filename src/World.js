@@ -3,7 +3,15 @@ import * as CANNON from 'cannon-es'
 import { FontLoader } from 'three/addons/loaders/FontLoader.js'
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js'
 import fontData from './assets/helvetiker_bold.typeface.json'
-import { makePlankTexture, makeBarrelTexture, makeRuneTexture } from './textures.js'
+import { buildShipModel } from './ShipModel.js'
+import {
+  makePlankTexture,
+  makeBarrelTexture,
+  makeRuneTexture,
+  makeFlagTexture,
+  makeBallTexture,
+  makeTextPlate,
+} from './textures.js'
 
 const font = new FontLoader().parse(fontData)
 
@@ -40,6 +48,9 @@ export class World {
     this.buildCrates()
     this.buildBarrels()
     this.buildIslands()
+    this.buildBeatenFlags()
+    this.buildGoalArena()
+    this.buildTrophyIslet()
     this.buildRampAndSerpent()
     this.buildRocks()
     this.buildIcebergs()
@@ -90,8 +101,8 @@ export class World {
   // The site title is spelled out in knockable, physics-driven gold letters.
   buildTitleLetters() {
     const rows = [
-      { text: 'VIKING', z: 21, size: 2.4 },
-      { text: 'SHIP', z: 27, size: 2.4 },
+      { text: 'HEIA', z: 21, size: 2.4 },
+      { text: 'NORGE', z: 27, size: 2.4 },
     ]
     for (const row of rows) {
       for (const letter of this.makeLetterMeshes(row.text, row.size)) {
@@ -165,9 +176,233 @@ export class World {
 
   // --------------------------------------------------------------- islands
   buildIslands() {
-    this.makeIsland(-42, 46, 9, 'projects', 'PROJECTS')
-    this.makeIsland(44, 64, 8, 'about', 'ABOUT')
-    this.makeIsland(-20, -56, 7.5, 'contact', 'CONTACT')
+    this.makeIsland(-42, 46, 9, 'veienhit', 'VEIEN HIT')
+    this.makeIsland(44, 64, 8, 'troppen', 'TROPPEN')
+  }
+
+  // The flags of every side Norway has beaten so far, planted in the sea
+  // like victory markers along the route to the VEIEN HIT island.
+  buildBeatenFlags() {
+    const beaten = [
+      { kind: 'iraq', label: 'IRAK  4-1', x: -14, z: 24 },
+      { kind: 'senegal', label: 'SENEGAL  3-2', x: -21, z: 30 },
+      { kind: 'ivorycoast', label: 'ELFENBENSKYSTEN  2-1', x: -28, z: 36 },
+      { kind: 'brazil', label: 'BRASIL  2-1', x: -35, z: 42 },
+    ]
+    this.beatenFlags = []
+    beaten.forEach((entry, i) => {
+      const group = new THREE.Group()
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 5.2, 7), mat.trunk)
+      pole.position.y = 2.6
+      group.add(pole)
+
+      const flag = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.9, 1.3),
+        new THREE.MeshStandardMaterial({
+          map: makeFlagTexture(entry.kind),
+          side: THREE.DoubleSide,
+          roughness: 1,
+        })
+      )
+      flag.geometry.translate(0.95, 0, 0)
+      flag.position.set(0.07, 4.3, 0)
+      group.add(flag)
+
+      const plate = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.6, 1.3),
+        new THREE.MeshStandardMaterial({ map: makeTextPlate(entry.label), side: THREE.DoubleSide })
+      )
+      plate.position.set(0.4, 1.9, 0)
+      group.add(plate)
+
+      group.position.set(entry.x, 0, entry.z)
+      // beaten flags hang their heads
+      group.rotation.z = 0.16 + i * 0.03
+      group.rotation.y = Math.PI / 3
+      this.scene.add(group)
+      this.physics.addStaticCylinder(0.12, 5, [entry.x, 2.5, entry.z])
+      this.beatenFlags.push({ group, flag, phase: i * 1.7 })
+    })
+  }
+
+  // ----------------------------------------------- England arena + fotball
+  // A goal guarded by an England drakkar: shove the ball past them with the
+  // ship. Sailing into the arena opens the quarter-final panel.
+  buildGoalArena() {
+    const center = new THREE.Vector3(-20, 0, -56)
+    // opening faces the spawn point
+    const facing = new THREE.Vector3(0, 0, 0).sub(center).setY(0).normalize()
+    const yaw = Math.atan2(facing.x, facing.z)
+    this.goal = { center, facing, halfWidth: 4.2, score: 0, cooldown: 0 }
+
+    const white = new THREE.MeshStandardMaterial({ color: '#f4f4f0', roughness: 0.6 })
+    const goalGroup = new THREE.Group()
+    goalGroup.position.copy(center)
+    goalGroup.rotation.y = yaw
+
+    for (const side of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.4, 8), white)
+      post.position.set(side * this.goal.halfWidth, 1.7, 0)
+      post.castShadow = true
+      goalGroup.add(post)
+    }
+    const bar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, this.goal.halfWidth * 2 + 0.3, 8),
+      white
+    )
+    bar.rotation.z = Math.PI / 2
+    bar.position.y = 3.4
+    goalGroup.add(bar)
+
+    // simple net: translucent back wall
+    const net = new THREE.Mesh(
+      new THREE.PlaneGeometry(this.goal.halfWidth * 2, 3.2),
+      new THREE.MeshStandardMaterial({
+        color: '#ffffff',
+        transparent: true,
+        opacity: 0.22,
+        side: THREE.DoubleSide,
+      })
+    )
+    net.position.set(0, 1.7, -1.6)
+    goalGroup.add(net)
+    this.scene.add(goalGroup)
+
+    this.goal.yaw = yaw
+
+    // physics: posts + a back wall so the ball stays in the net area
+    for (const side of [-1, 1]) {
+      const p = new THREE.Vector3(side * this.goal.halfWidth, 0, 0)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw)
+        .add(center)
+      this.physics.addStaticCylinder(0.16, 3.4, [p.x, 1.7, p.z])
+    }
+    const backQ = new CANNON.Quaternion().setFromEuler(0, yaw, 0)
+    const back = new THREE.Vector3(0, 0, -2.2).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(center)
+    this.physics.addStaticBox([this.goal.halfWidth + 0.4, 2, 0.25], [back.x, 2, back.z], backQ)
+
+    // the England drakkar looming behind the goal
+    const englandShip = buildShipModel('england').group
+    const behind = new THREE.Vector3(0, 0, -7.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(center)
+    englandShip.position.copy(behind)
+    englandShip.rotation.y = yaw + Math.PI / 2 // broadside, blocking the way
+    this.scene.add(englandShip)
+    this.englandShip = englandShip
+    this.physics.addStaticBox([3.4, 1.2, 1.2], [behind.x, 1, behind.z], new CANNON.Quaternion().setFromEuler(0, yaw + Math.PI / 2, 0))
+
+    // Norwegian corner flags marking the pitch
+    for (const [dx, dz] of [
+      [-11, 3],
+      [11, 3],
+      [-11, 14],
+      [11, 14],
+    ]) {
+      const p = new THREE.Vector3(dx, 0, dz).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(center)
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 3.2, 6), mat.trunk)
+      pole.position.set(p.x, 1.6, p.z)
+      const f = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.0, 0.66),
+        new THREE.MeshStandardMaterial({
+          map: makeFlagTexture('norway'),
+          side: THREE.DoubleSide,
+          roughness: 1,
+        })
+      )
+      f.geometry.translate(0.5, 0, 0)
+      f.position.set(p.x, 2.9, p.z)
+      this.scene.add(pole, f)
+    }
+
+    // the ball, on the penalty spot in front of the goal
+    this.ballSpawn = new THREE.Vector3(0, 1.2, 9).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(center)
+    const ballMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1.0, 18, 14),
+      new THREE.MeshStandardMaterial({ map: makeBallTexture(), roughness: 0.55 })
+    )
+    ballMesh.castShadow = true
+    this.scene.add(ballMesh)
+    this.ball = this.physics.addDynamicSphere(
+      1.0,
+      [this.ballSpawn.x, this.ballSpawn.y, this.ballSpawn.z],
+      3,
+      ballMesh,
+      { bob: 0.3 }
+    )
+
+    this.triggers.push({ key: 'england', x: center.x + facing.x * 8, z: center.z + facing.z * 8, radius: 13, inside: false })
+
+    const labelMesh = this.makeFloatingLabel('NESTE: ENGLAND')
+    labelMesh.position.set(center.x, 6.2, center.z)
+    this.scene.add(labelMesh)
+    this.floatingLabels.push({ mesh: labelMesh, baseY: 6.2, phase: 2.4 })
+  }
+
+  resetBall() {
+    this.ball.position.set(this.ballSpawn.x, this.ballSpawn.y, this.ballSpawn.z)
+    this.ball.velocity.setZero()
+    this.ball.angularVelocity.setZero()
+    this.ball.wakeUp()
+  }
+
+  // ------------------------------------------------- the World Cup trophy
+  // Past the ramp and the serpent: the gold itself. Sail close for the
+  // route to the final.
+  buildTrophyIslet() {
+    const x = -26
+    const z = 105
+    const islet = new THREE.Group()
+    islet.position.set(x, 0, z)
+
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 4.2, 2.4, 9), mat.rock)
+    base.position.y = 0.9
+    islet.add(base)
+    const plinth = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.4, 0.9, 8), mat.stone)
+    plinth.position.y = 2.5
+    islet.add(plinth)
+
+    // a stylized World Cup: lathe profile, spinning slowly
+    const profile = []
+    const pts = [
+      [0.55, 0],
+      [0.6, 0.12],
+      [0.35, 0.3],
+      [0.22, 0.7],
+      [0.34, 1.1],
+      [0.6, 1.45],
+      [0.72, 1.75],
+      [0.6, 2.0],
+      [0.05, 2.15],
+    ]
+    for (const [r, y] of pts) profile.push(new THREE.Vector2(r, y))
+    const trophy = new THREE.Mesh(
+      new THREE.LatheGeometry(profile, 18),
+      new THREE.MeshStandardMaterial({
+        color: '#ffd23e',
+        metalness: 0.85,
+        roughness: 0.25,
+        emissive: '#7a5a00',
+        emissiveIntensity: 0.25,
+      })
+    )
+    trophy.scale.setScalar(1.15)
+    trophy.position.y = 2.95
+    trophy.castShadow = true
+    islet.add(trophy)
+    this.trophy = trophy
+
+    const glow = new THREE.PointLight('#ffd76e', 25, 22)
+    glow.position.set(0, 5, 0)
+    islet.add(glow)
+
+    this.scene.add(islet)
+    this.physics.addStaticCylinder(3.6, 5, [x, 1, z])
+
+    const labelMesh = this.makeFloatingLabel('VEIEN TIL GULL')
+    labelMesh.position.set(x, 7.2, z)
+    this.scene.add(labelMesh)
+    this.floatingLabels.push({ mesh: labelMesh, baseY: 7.2, phase: 4.1 })
+
+    this.triggers.push({ key: 'gull', x, z: z - 5, radius: 11, inside: false })
   }
 
   makeIsland(x, z, r, key, label) {
@@ -422,7 +657,7 @@ export class World {
   }
 
   // ---------------------------------------------------------------- update
-  update(dt, time, shipPos) {
+  update(dt, time, shipPos, cameraPos) {
     this.time = time
 
     for (const cloud of this.clouds) {
@@ -432,7 +667,13 @@ export class World {
 
     for (const label of this.floatingLabels) {
       label.mesh.position.y = label.baseY + Math.sin(time * 1.2 + label.phase) * 0.25
-      label.mesh.rotation.y = Math.sin(time * 0.4 + label.phase) * 0.35
+      // billboard: gold letters always readable, never mirrored
+      if (cameraPos) {
+        label.mesh.rotation.y = Math.atan2(
+          cameraPos.x - label.mesh.position.x,
+          cameraPos.z - label.mesh.position.z
+        )
+      }
     }
 
     if (this.serpentHead) {
@@ -440,7 +681,23 @@ export class World {
       this.serpentHead.rotation.z = Math.sin(time * 0.5) * 0.06
     }
 
-    // runestone proximity -> open the matching panel
+    // defeated flags flutter half-heartedly
+    for (const f of this.beatenFlags) {
+      f.flag.rotation.y = Math.sin(time * 2.1 + f.phase) * 0.22
+    }
+
+    if (this.englandShip) {
+      this.englandShip.position.y = Math.sin(time * 0.9 + 1) * 0.18
+      this.englandShip.rotation.z = Math.sin(time * 0.7) * 0.03
+    }
+
+    if (this.trophy) {
+      this.trophy.rotation.y = time * 0.6
+    }
+
+    this.updateGoal(dt)
+
+    // zone proximity -> open the matching panel
     for (const trig of this.triggers) {
       const d = Math.hypot(shipPos.x - trig.x, shipPos.z - trig.z)
       if (!trig.inside && d < trig.radius) {
@@ -450,6 +707,33 @@ export class World {
         trig.inside = false
         this.ui.closePanelIf(trig.key)
       }
+    }
+  }
+
+  updateGoal(dt) {
+    if (!this.goal || !this.ball) return
+    const g = this.goal
+
+    if (g.cooldown > 0) {
+      g.cooldown -= dt
+      if (g.cooldown <= 0) this.resetBall()
+      return
+    }
+
+    // ball position in goal-local coordinates (goal line at local z = 0)
+    const local = new THREE.Vector3(
+      this.ball.position.x - g.center.x,
+      this.ball.position.y,
+      this.ball.position.z - g.center.z
+    ).applyAxisAngle(new THREE.Vector3(0, 1, 0), -g.yaw)
+
+    if (Math.abs(local.x) < g.halfWidth && local.z < -0.4 && local.z > -2.4 && local.y < 3.4) {
+      g.score++
+      g.cooldown = 2.2 // let the ball rest in the net before it respawns
+      this.ui.goalScored(g.score)
+    } else if (local.length() > 70) {
+      // ball dribbled out to sea — quietly bring it home
+      this.resetBall()
     }
   }
 }

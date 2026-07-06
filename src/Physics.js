@@ -13,6 +13,7 @@ export class Physics {
       ground: new CANNON.Material('ground'),
       wheel: new CANNON.Material('wheel'),
       object: new CANNON.Material('object'),
+      ball: new CANNON.Material('ball'),
     }
 
     this.world.addContactMaterial(
@@ -25,6 +26,18 @@ export class Physics {
       new CANNON.ContactMaterial(this.materials.object, this.materials.object, {
         friction: 0.3,
         restitution: 0.2,
+      })
+    )
+    this.world.addContactMaterial(
+      new CANNON.ContactMaterial(this.materials.ground, this.materials.ball, {
+        friction: 0.2,
+        restitution: 0.55,
+      })
+    )
+    this.world.addContactMaterial(
+      new CANNON.ContactMaterial(this.materials.object, this.materials.ball, {
+        friction: 0.25,
+        restitution: 0.65,
       })
     )
 
@@ -65,6 +78,18 @@ export class Physics {
     body.linearDamping = 0.25
     body.angularDamping = 0.35
     body.sleepSpeedLimit = 0.4
+    this.world.addBody(body)
+    if (mesh) this.track(mesh, body, opts)
+    return body
+  }
+
+  addDynamicSphere(radius, position, mass, mesh, opts) {
+    const body = new CANNON.Body({ mass, material: this.materials.ball })
+    body.addShape(new CANNON.Sphere(radius))
+    body.position.set(...position)
+    body.linearDamping = 0.18
+    body.angularDamping = 0.2
+    body.sleepSpeedLimit = 0.3
     this.world.addBody(body)
     if (mesh) this.track(mesh, body, opts)
     return body

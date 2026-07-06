@@ -119,7 +119,7 @@ await page.waitForTimeout(400)
 const p4 = await page.evaluate(() => ({ ...window.__game.ship.body.position }))
 check('R resets to spawn', Math.hypot(p4.x, p4.z) < 1.5, `pos (${p4.x.toFixed(1)}, ${p4.z.toFixed(1)})`)
 
-// --- runestone trigger: teleport next to the PROJECTS stone ---
+// --- runestone trigger: teleport next to the VEIEN HIT stone ---
 await page.evaluate(() => {
   const b = window.__game.ship.body
   b.position.set(-36, 1.6, 40)
@@ -130,8 +130,33 @@ const panelInfo = await page.evaluate(() => ({
   hidden: document.getElementById('panel').classList.contains('hidden'),
   title: document.getElementById('panelTitle').textContent,
 }))
-check('sailing near runestone opens panel', !panelInfo.hidden && panelInfo.title === 'Projects', JSON.stringify(panelInfo))
+check('sailing near runestone opens panel', !panelInfo.hidden && panelInfo.title === 'Veien hit', JSON.stringify(panelInfo))
 await page.screenshot({ path: SHOTS + '04-panel.png' })
+
+// --- goal: fire the ball into the England net, expect the score to tick ---
+await page.evaluate(() => {
+  const w = window.__game.world
+  const g = w.goal
+  // place the ball 6m out on the goal axis and shoot it in
+  w.ball.position.set(g.center.x + g.facing.x * 6, 1.2, g.center.z + g.facing.z * 6)
+  w.ball.velocity.set(-g.facing.x * 14, 0, -g.facing.z * 14)
+  w.ball.wakeUp() // a resting body sleeps; velocity alone won't move it
+})
+const goalState = await (async () => {
+  const t0 = Date.now()
+  while (Date.now() - t0 < 10000) {
+    await page.waitForTimeout(300)
+    const s = await page.evaluate(() => ({
+      score: window.__game.world.goal.score,
+      toast: !document.getElementById('goalToast').classList.contains('hidden'),
+      scoreText: document.getElementById('score').textContent,
+    }))
+    if (s.score > 0) return s
+  }
+  return { score: 0, toast: false, scoreText: '' }
+})()
+check('shooting the ball into the net scores', goalState.score >= 1, JSON.stringify(goalState))
+await page.screenshot({ path: SHOTS + '05-goal.png' })
 
 // sail away -> panel closes
 await page.evaluate(() => {

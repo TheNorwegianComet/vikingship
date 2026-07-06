@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { makePlankTexture, makeSailTexture } from './textures.js'
+import { makePlankTexture, makeSailTexture, makeFlagTexture } from './textures.js'
 
 // The longship is built entirely from primitives — no model files.
 // Ship-local axes: bow points toward +z, +y up, +x is port (left).
@@ -85,7 +85,9 @@ function buildDragonHead(woodDark, gold) {
   return head
 }
 
-export function buildShipModel() {
+// variant: 'norway' (the player's drakkar) or 'england' (the rival guarding
+// the goal). Sail, pennant and shield palette follow the variant.
+export function buildShipModel(variant = 'norway') {
   const group = new THREE.Group()
   const parts = {}
 
@@ -185,10 +187,16 @@ export function buildShipModel() {
     }
     sailGeo.computeVertexNormals()
   }
+  // Mirror the sail texture: the gameplay camera rides behind the ship and
+  // sees the aft face, so this makes the flag read correctly in play.
+  const sailTex = makeSailTexture(variant)
+  sailTex.wrapS = THREE.RepeatWrapping
+  sailTex.repeat.x = -1
+  sailTex.offset.x = 1
   const sail = new THREE.Mesh(
     sailGeo,
     new THREE.MeshStandardMaterial({
-      map: makeSailTexture(),
+      map: sailTex,
       side: THREE.DoubleSide,
       roughness: 1,
     })
@@ -198,17 +206,18 @@ export function buildShipModel() {
   group.add(sail)
   parts.sail = sail
 
-  // pennant at masthead
-  const flagShape = new THREE.Shape()
-  flagShape.moveTo(0, 0)
-  flagShape.lineTo(0.85, 0.14)
-  flagShape.lineTo(0, 0.28)
+  // national flag at the masthead
   const flag = new THREE.Mesh(
-    new THREE.ShapeGeometry(flagShape),
-    new THREE.MeshStandardMaterial({ color: '#c8452f', side: THREE.DoubleSide, roughness: 1 })
+    new THREE.PlaneGeometry(0.95, 0.62),
+    new THREE.MeshStandardMaterial({
+      map: makeFlagTexture(variant),
+      side: THREE.DoubleSide,
+      roughness: 1,
+    })
   )
+  flag.geometry.translate(0.475, 0, 0) // wave around the hoist edge
   flag.rotation.y = Math.PI / 2
-  flag.position.set(0, 4.92, 0.2)
+  flag.position.set(0, 4.95, 0.2)
   group.add(flag)
   parts.flag = flag
 
@@ -234,7 +243,10 @@ export function buildShipModel() {
   }
 
   // --- shields along the gunwale ---
-  const shieldColors = ['#a93f35', '#e6d7b4', '#2f6f7e', '#d9a441']
+  const shieldColors =
+    variant === 'england'
+      ? ['#ce1124', '#f4f4f0']
+      : ['#ba0c2f', '#f4f4f0', '#00205b', '#d9a441'] // Norwegian colours + a bit of viking gold
   const shieldGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.07, 14)
   shieldGeo.rotateZ(Math.PI / 2)
   const rimGeo = new THREE.TorusGeometry(0.42, 0.028, 6, 18)

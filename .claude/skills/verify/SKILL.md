@@ -35,6 +35,9 @@ URL params give fixed beauty-shot cameras with the intro overlay skipped.
 - Physics runs on a flat plane; waves are visual only. Positions/speeds read from
   `window.__game.ship.body` are ground truth.
 - Ship forward is +z, steering left is +yaw (`ship.getYaw()`).
+- Dynamic bodies **sleep** (`allowSleep`): setting `body.velocity` on an idle body
+  (e.g. the football via `window.__game.world.ball`) does nothing until you call
+  `body.wakeUp()` first.
 - The letter rows scatter forward when smashed — keep spawn-lane tests away from
   the ramp lane at x=-26 or debris can block the climb (this happened; that's why
   the ramp is off to the side).

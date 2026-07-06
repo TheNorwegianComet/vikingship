@@ -16,7 +16,7 @@ if (webglAvailable()) {
   const msg = document.createElement('div')
   msg.id = 'nogl'
   msg.innerHTML =
-    'This longship needs WebGL2 to sail.<br/>Your browser or device has it disabled — try another one, and Odin be with you.'
+    'Denne drakkaren trenger WebGL2 for å seile.<br/>Nettleseren din har det avskrudd — prøv en annen, og må Odin være med deg.'
   document.body.appendChild(msg)
   document.getElementById('intro').classList.add('hidden')
 }

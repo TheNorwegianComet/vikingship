@@ -84,7 +84,7 @@ export class Experience {
     }
 
     // handle for automated tests / tinkering in the console
-    window.__game = { experience: this, ship: this.ship, physics: this.physics }
+    window.__game = { experience: this, ship: this.ship, physics: this.physics, world: this.world }
 
     this.renderer.setAnimationLoop(() => this.tick())
   }
@@ -194,7 +194,7 @@ export class Experience {
     this.physics.step(dt)
     this.ship.update(dt, t, driving)
     this.physics.sync(t, waveHeight)
-    this.world.update(dt, t, this.ship.root.position)
+    this.world.update(dt, t, this.ship.root.position, this.camera.position)
 
     const shipPos = this.ship.root.position
     this.ocean.update(t, shipPos.x, shipPos.z, this.camera.position)
